@@ -1,28 +1,37 @@
 #!/usr/bin/env python3
-"""
-Module for handling Personal Data
-"""
+""" Regex-ing """
 from typing import List
 import re
 import logging
 from os import environ
 import mysql.connector
 
-
+# # PII fields to be redacted
 PII_FIELDS = ("name", "email", "phone", "ssn", "password")
 
 
-def filter_datum(fields: List[str], redaction: str,
-                 message: str, separator: str) -> str:
-    """ Returns a log message obfuscated """
+def filter_datum(
+    fields: List[str], redaction: str, message: str, separator: str
+) -> str:
+    """
+    Replaces sensitive information in a message with a redacted value
+        based on the list of fields to redact
+    """
+
     for f in fields:
-        message = re.sub(f'{f}=.*?{separator}',
-                         f'{f}={redaction}{separator}', message)
+        message = re.sub(
+                f"{f}=.*?{separator}", f"{f}={redaction}{separator}", message)
     return message
 
 
 def get_logger() -> logging.Logger:
-    """ Returns a Logger Object """
+    """
+    Returns a Logger object for handling Personal Data
+
+    Returns:
+        A Logger object with INFO log level and RedactingFormatter
+        formatter for filtering PII fields
+    """
     logger = logging.getLogger("user_data")
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -35,7 +44,13 @@ def get_logger() -> logging.Logger:
 
 
 def get_db() -> mysql.connector.connection.MySQLConnection:
-    """ Returns a connector to a MySQL database """
+    """
+    Returns a MySQLConnection object for accessing Personal Data database
+
+    Returns:
+        A MySQLConnection object using connection details from
+        environment variables
+    """
     username = environ.get("PERSONAL_DATA_DB_USERNAME", "root")
     password = environ.get("PERSONAL_DATA_DB_PASSWORD", "")
     host = environ.get("PERSONAL_DATA_DB_HOST", "localhost")
@@ -50,8 +65,7 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
 
 def main():
     """
-    Obtain a database connection using get_db and retrieves all rows
-    in the users table and display each row under a filtered format
+    Main function to retrieve user data from database and log to console
     """
     db = get_db()
     cursor = db.cursor()
@@ -77,15 +91,21 @@ class RedactingFormatter(logging.Formatter):
     SEPARATOR = ";"
 
     def __init__(self, fields: List[str]):
+        """
+        Constructor method for RedactingFormatter class
+        """
         super(RedactingFormatter, self).__init__(self.FORMAT)
         self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
-        """ Filters values in incoming log records using filter_datum """
+        """
+        Formats the specified log record as text.
+        Filters values in incoming log records using filter_datum
+        """
         record.msg = filter_datum(self.fields, self.REDACTION,
                                   record.getMessage(), self.SEPARATOR)
         return super(RedactingFormatter, self).format(record)
 
 
 if __name__ == '__main__':
-    main()
+        main()
